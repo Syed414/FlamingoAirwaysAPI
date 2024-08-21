@@ -9,11 +9,13 @@ using static FlamingoAirwaysAPI.Models.FlamingoAirwaysModel;
 using static FlamingoAirwaysAPI.Models.FlamingoAirwaysModel.Payment;
 using FlamingoAirwaysAPI.Models;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Flamingo_API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles="User")]
     public class BookingController : ControllerBase
     {
         private readonly IBookingRepository _bookingRepo;
@@ -53,6 +55,7 @@ namespace Flamingo_API.Controllers
                 return BadRequest("Invalid bank name. Please select a valid bank.");
             }
             var flight = await _flightRepo.GetFlightById(request.FlightId);
+
             if (flight == null)
             {
                 return NotFound("Flight not found.");
@@ -69,7 +72,7 @@ namespace Flamingo_API.Controllers
                 FlightIdFK = request.FlightId,
                 UserIdFK = request.UserId, // Assuming user ID is provided in the request
                 BookingDate = DateTime.UtcNow,
-                PNR = GeneratePnr(), // Implement GeneratePnr() to create unique PNR
+                PNR = GeneratePnr(), 
                 IsCancelled = false
             };
 
@@ -94,7 +97,7 @@ namespace Flamingo_API.Controllers
                 var ticket = new Ticket
                 {
                     BookingIdF = booking.BookingId,
-                    SeatNumber = $"Seat-{flight.AvailableSeats-i}", // Generate seat number as needed
+                    SeatNumber = $"Seat-{flight.AvailableSeats-i}", // Generate seat number
                     PassengerName = request.PassengerNames[i],
                     Price = flight.Price
                 };
@@ -170,6 +173,7 @@ namespace Flamingo_API.Controllers
         {
             // Fetch the ticket by its ID and Booking ID
             var ticket = await _ticketRepo.GetByBookingIdAndTicketIdAsync(bookingId, ticketId);
+
             if (ticket == null)
             {
                 return NotFound();

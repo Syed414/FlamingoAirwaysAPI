@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using static FlamingoAirwaysAPI.Models.FlamingoAirwaysModel;
 using static FlamingoAirwaysAPI.Models.FlamingoAirwaysDbContext;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -20,6 +21,7 @@ namespace FlamingoAirwaysAPI.Controllers
         }
         // GET: api/<FlamingoAirwaysController>
         [HttpGet]
+        [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<List<FlamingoAirwaysModel>>> ShowAll()
         {
             var flights = await _repo.GetAllFlights();
@@ -27,6 +29,7 @@ namespace FlamingoAirwaysAPI.Controllers
         }
 
         // GET api/<FlamingoAirwaysController>/5
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<ActionResult<FlamingoAirwaysModel>> FindFlight(int id)
         {
@@ -39,7 +42,7 @@ namespace FlamingoAirwaysAPI.Controllers
         }
 
         // POST api/<FlamingoAirwaysController>
-        
+        [Authorize(Roles="Admin",AuthenticationSchemes=JwtBearerDefaults.AuthenticationScheme)]
         [HttpPost]
         public async Task<IActionResult> Post([FromBody] Flight value)
         {
@@ -54,6 +57,7 @@ namespace FlamingoAirwaysAPI.Controllers
 
         // PUT api/<FlamingoAirwaysController>/5
         [HttpPut("{id}")]
+        [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)] 
         public async Task<IActionResult> Put(int id, [FromBody] Flight value)
         {
 
@@ -69,6 +73,7 @@ namespace FlamingoAirwaysAPI.Controllers
 
         // DELETE api/<FlamingoAirwaysController>/5
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> Delete(int id)
         {
            await _repo.RemoveFlight(id);
