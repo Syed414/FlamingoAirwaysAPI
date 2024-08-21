@@ -170,6 +170,8 @@ namespace FlamingoAirwaysAPI.Models
             public decimal Retainer { get; set; }
             public Booking Bookings { get; set; }
 
+            //public int CVV { get; set; }
+
             public class BookingRequest
             {
                 public int FlightId { get; set; }
@@ -177,6 +179,9 @@ namespace FlamingoAirwaysAPI.Models
                 public int Seats { get; set; }
                 public List<string> PassengerNames { get; set; }
                 public PaymentRequest Payment { get; set; }
+                public int CVV { get; set; }
+                public string BankName { get; set; }
+
             }
 
             // DTO for payment details
@@ -185,6 +190,8 @@ namespace FlamingoAirwaysAPI.Models
                 public string PaymentType { get; set; } // CreditCard or DebitCard
                 public string CardNumber { get; set; }
                 public string CardHolderName { get; set; }
+                //public int CVV { get; set; }
+
             }
         }
     }

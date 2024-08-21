@@ -8,6 +8,7 @@ using FlamingoAirwaysAPI.Models.Interfaces;
 using static FlamingoAirwaysAPI.Models.FlamingoAirwaysModel;
 using static FlamingoAirwaysAPI.Models.FlamingoAirwaysModel.Payment;
 using FlamingoAirwaysAPI.Models;
+using System.Text.RegularExpressions;
 
 namespace Flamingo_API.Controllers
 {
@@ -36,11 +37,21 @@ namespace Flamingo_API.Controllers
         [HttpPost]
         public async Task<ActionResult<Booking>> PostBooking([FromBody] BookingRequest request)
         {
-            if (request == null || request.Seats <= 0 || string.IsNullOrEmpty(request.Payment.CardNumber))
+            
+            if (!Regex.IsMatch(request.CVV.ToString() , @"^\d{3}$"))
             {
-                return BadRequest("Invalid request data.");
+                return BadRequest("Invalid CVV. It must be 3 digits.");
+            }
+            if (!Regex.IsMatch(request.Payment.CardNumber, @"^\d{12}$"))
+            {
+                return BadRequest("Invalid card number. It must be 12 digits.");
             }
 
+            var validBank = new List<string> { "Kotak", "SBI", "Axis", "HDFC" };
+            if (!validBank.Contains(request.BankName))
+            {
+                return BadRequest("Invalid bank name. Please select a valid bank.");
+            }
             var flight = await _flightRepo.GetFlightById(request.FlightId);
             if (flight == null)
             {
