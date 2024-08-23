@@ -10,5 +10,7 @@ namespace FlamingoAirwaysAPI.Models.Interfaces
         Task AddUser(User user);
         Task UpdateUser(User user);
         Task RemoveUser(int id);
+
+        public User? ValidateUser(string email, string password);
     }
 }

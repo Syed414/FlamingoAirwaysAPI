@@ -5,6 +5,13 @@ namespace FlamingoAirwaysAPI.Models
 {
     public class FlamingoAirwaysModel
     {
+
+        public class Login
+        {
+            public string? Email { get; set; }
+            public string? Password { get; set; }
+        }
+
         [Table("Users")]
         public class User
         {
@@ -84,10 +91,10 @@ namespace FlamingoAirwaysAPI.Models
             [Key]
             public int BookingId { get; set; }
 
-            [ForeignKey("Flights")]
+            [ForeignKey(nameof(Flight))]
             public int FlightIdFK { get; set; }
 
-            [ForeignKey("Users")]
+            [ForeignKey(nameof(User))]
             public int UserIdFK { get; set; }
 
             [Required]
@@ -102,9 +109,9 @@ namespace FlamingoAirwaysAPI.Models
             public bool IsCancelled { get; set; }
 
 
-            public User Users { get; set; }
+            public User User { get; set; }
 
-            public Flight Flights { get; set; }
+            public Flight Flight { get; set; }
 
 
         }
@@ -116,7 +123,7 @@ namespace FlamingoAirwaysAPI.Models
 
             public int TicketId { get; set; }
 
-            [ForeignKey("Bookings")]
+            [ForeignKey(nameof(Booking))]
             public int BookingIdF { get; set; }
 
             [Required]
@@ -131,7 +138,7 @@ namespace FlamingoAirwaysAPI.Models
             [Column(TypeName = "decimal(18,2)")]
             public decimal Price { get; set; }
 
-            public Booking Bookings { get; set; }
+            public Booking Booking { get; set; }
         }
 
         [Table("Payments")]
@@ -141,7 +148,7 @@ namespace FlamingoAirwaysAPI.Models
 
             public int PaymentId { get; set; }
 
-            [ForeignKey("Bookings")]
+            [ForeignKey(nameof(Booking))]
             public int BookingIdFK { get; set; }
 
             [Required]
@@ -168,14 +175,14 @@ namespace FlamingoAirwaysAPI.Models
             [DataType(DataType.Currency)]
             [Column(TypeName = "decimal(18, 2)")] 
             public decimal Retainer { get; set; }
-            public Booking Bookings { get; set; }
+            public Booking Booking { get; set; }
 
             //public int CVV { get; set; }
 
             public class BookingRequest
             {
                 public int FlightId { get; set; }
-                public int UserId { get; set; }
+                //public int UserId { get; set; }
                 public int Seats { get; set; }
                 public List<string> PassengerNames { get; set; }
                 public PaymentRequest Payment { get; set; }

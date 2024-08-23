@@ -10,18 +10,21 @@ using static FlamingoAirwaysAPI.Models.FlamingoAirwaysModel.Payment;
 using FlamingoAirwaysAPI.Models;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace Flamingo_API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles="User")]
+   
     public class BookingController : ControllerBase
     {
         private readonly IBookingRepository _bookingRepo;
         private readonly IFlightRepository _flightRepo;
         private readonly IPaymentRepository _paymentRepo;
         private readonly ITicketRepository _ticketRepo;
+        private readonly IUserRepository _userRepo;
         private readonly FlamingoAirwaysDbContext _context;
 
         public BookingController(IBookingRepository bookingRepo, IFlightRepository flightRepo, IPaymentRepository paymentRepo, ITicketRepository ticketRepo, FlamingoAirwaysDbContext context)
@@ -33,10 +36,18 @@ namespace Flamingo_API.Controllers
             _context = context;
         }
 
+        [HttpGet]
+        [Authorize(Roles = "Admin", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<ActionResult<IEnumerable<Booking>>> GetAllBookings()
 
+        {
+            var bookings = await _bookingRepo.GetAllBookingsAsync();
+            return Ok(bookings);
+        }
 
         // POST api/Booking
         [HttpPost]
+        [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<Booking>> PostBooking([FromBody] BookingRequest request)
         {
             
@@ -54,6 +65,19 @@ namespace Flamingo_API.Controllers
             {
                 return BadRequest("Invalid bank name. Please select a valid bank.");
             }
+
+            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "UserID");
+
+            if (userIdClaim == null)
+            {
+                return Unauthorized("User ID not found in token.");
+            }
+
+            if (!int.TryParse(userIdClaim.Value, out var UserID))
+            {
+                return Unauthorized("Invalid User ID format in token.");
+            }
+
             var flight = await _flightRepo.GetFlightById(request.FlightId);
 
             if (flight == null)
@@ -70,7 +94,7 @@ namespace Flamingo_API.Controllers
             var booking = new Booking
             {
                 FlightIdFK = request.FlightId,
-                UserIdFK = request.UserId, // Assuming user ID is provided in the request
+                UserIdFK = UserID, // Assuming user ID is provided in the request
                 BookingDate = DateTime.UtcNow,
                 PNR = GeneratePnr(), 
                 IsCancelled = false
@@ -103,6 +127,10 @@ namespace Flamingo_API.Controllers
                 };
 
                 await _ticketRepo.AddAsync(ticket);
+
+                
+                
+                
             }
             //decrease seat from flight 
             flight.AvailableSeats = flight.AvailableSeats - request.Seats;
@@ -112,6 +140,7 @@ namespace Flamingo_API.Controllers
 
         // GET api/Booking/5
         [HttpGet("{id}")]
+        [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<Booking>> GetBooking(int id)
         {
             var booking = await _bookingRepo.GetByIdAsync(id);
@@ -124,14 +153,23 @@ namespace Flamingo_API.Controllers
             return Ok(booking);
         }
 
+        
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> DeleteBooking(int id)
         {
             var booking = await _bookingRepo.GetByIdAsync(id);
             if (booking == null)
             {
                 return NotFound();
+            }
+
+            var userBooking = await _bookingRepo.GetByIdAsync(id);
+            var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserID")?.Value; //This gets the userid of the current authorized user from the token. User id is used to verify the current user 
+            if (userBooking.UserIdFK.ToString() != currentUserId)
+            {
+                return Forbid("You are not authorized to delete this ticket.");
             }
 
             var flight = await _flightRepo.GetByBookingIdAsync(id);
@@ -148,7 +186,7 @@ namespace Flamingo_API.Controllers
                 }
             }
 
-            // Delete booking
+            // Delete booking and setting it's value.....
             await _bookingRepo.CancelAsync(id);
 
             //update payment
@@ -169,14 +207,24 @@ namespace Flamingo_API.Controllers
 
 
         [HttpDelete("{bookingId}/ticket/{ticketId}")]
+        [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> DeleteTicket(int bookingId, int ticketId)
         {
             // Fetch the ticket by its ID and Booking ID
+            
             var ticket = await _ticketRepo.GetByBookingIdAndTicketIdAsync(bookingId, ticketId);
 
             if (ticket == null)
             {
                 return NotFound();
+            }
+
+            //Check if the current user is owner of the booking
+            var userBooking = await _bookingRepo.GetByIdAsync(bookingId);
+            var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserID")?.Value; //This gets the userid of the current authorized user from the token. User id is used to verify the current user 
+            if (userBooking.UserIdFK.ToString() != currentUserId)
+            {
+                return Forbid("You are not authorized to delete this ticket.");
             }
 
            //payment update
@@ -204,6 +252,7 @@ namespace Flamingo_API.Controllers
 
             return NoContent();
         }
+
 
         // Helper method to generate a unique PNR (for illustration purposes)
         private string GeneratePnr()

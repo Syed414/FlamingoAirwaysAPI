@@ -31,14 +31,17 @@ namespace FlamingoAirwaysAPI.Controllers
 
         // POST api/<UserController>
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] User value)
+        public async Task<IActionResult> Post([FromBody] User user)
         {
-            if (value == null)
+            if (user == null)
             {
                 return BadRequest();
             }
 
-            await _repo.AddUser(value);
+            //Before adding the password to DB Hash the password
+            user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
+
+            await _repo.AddUser(user);
             return Ok();
         }
 

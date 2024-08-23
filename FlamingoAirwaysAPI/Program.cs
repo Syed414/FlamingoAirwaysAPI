@@ -23,7 +23,7 @@ namespace FlamingoAirwaysAPI.Models
             builder.Services.AddDbContext<FlamingoAirwaysDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("AirwaysCnString")));
 
-            builder.Services.AddScoped<IUserRepository, UserRepository>();
+            builder.Services.AddScoped<IUserRepository, UserRepository>(); //one obj, one user 
             builder.Services.AddScoped<IFlightRepository, FlightRepository>();
             builder.Services.AddScoped<IBookingRepository, BookingRepository>();
             builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
@@ -47,7 +47,7 @@ namespace FlamingoAirwaysAPI.Models
                     BearerFormat = "Jwt",
                     In = ParameterLocation.Header,
                     Name = "Authorization",
-                    Description = "Bearer Authentication with JWT Token",
+                    Description = "Bearer Authentication with Jwt Token",
                     Type = SecuritySchemeType.Http
                 });
                 options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -66,7 +66,7 @@ namespace FlamingoAirwaysAPI.Models
                 });
             });
 
-            builder.Services.AddTransient<ILogin, LoginRepo>();
+            //builder.Services.AddTransient<IUserRepository, UserRepository>();
             builder.Services.AddAuthentication(opt => {
                 opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;

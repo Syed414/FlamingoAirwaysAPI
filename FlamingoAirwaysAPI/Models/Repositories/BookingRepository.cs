@@ -30,7 +30,10 @@ namespace FlamingoAirwaysAPI.Models
                 await _context.SaveChangesAsync();
             }
         }
-
+        public async Task<IEnumerable<Booking>> GetAllBookingsAsync()
+        {
+            return await _context.Bookings.ToListAsync();
+        }
         public async Task DeleteTicketsByBookingIdAsync(int bookingId)
         {
             var tickets = await _context.Tickets

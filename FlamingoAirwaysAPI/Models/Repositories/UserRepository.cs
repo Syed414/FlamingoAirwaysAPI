@@ -51,5 +51,16 @@ namespace FlamingoAirwaysAPI.Models.Repositories
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
         }
+
+        public User? ValidateUser(string email, string password)
+        {
+            //throw new NotImplementedException();
+            User user = _context.Users.SingleOrDefault(u => u.Email == email);
+            if (user != null && BCrypt.Net.BCrypt.Verify(password, user.Password))
+            {
+                return user;
+            }
+            return null;
+        }
     }
 }
