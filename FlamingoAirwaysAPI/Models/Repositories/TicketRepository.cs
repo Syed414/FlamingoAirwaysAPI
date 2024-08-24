@@ -38,8 +38,7 @@ namespace FlamingoAirwaysAPI.Models.Repositories
         public async Task<Ticket> GetByBookingIdAndTicketIdAsync(int bookingId, int ticketId)
         {
             //throw new NotImplementedException();
-            return await _context.Tickets
-                         .FirstOrDefaultAsync(t => t.BookingIdF == bookingId && t.TicketId == ticketId);
+            return await _context.Tickets.FirstOrDefaultAsync(t => t.BookingIdF == bookingId && t.TicketId == ticketId);
         }
 
         public async Task UpdateAsync(Ticket ticket)

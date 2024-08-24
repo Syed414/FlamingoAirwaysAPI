@@ -6,8 +6,7 @@ using FlamingoAirwaysAPI.Models;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using DinkToPdf;
-using DinkToPdf.Contracts;
+using System.Text;
 
 namespace Flamingo_API.Controllers
 {
@@ -22,18 +21,16 @@ namespace Flamingo_API.Controllers
         private readonly ITicketRepository _ticketRepo;
         private readonly IUserRepository _userRepo;
         private readonly FlamingoAirwaysDbContext _context;
-        private readonly IConverter _pdfconverter;
-        private readonly PdfService _pdfService;
 
-        public BookingController(IBookingRepository bookingRepo, IFlightRepository flightRepo, IPaymentRepository paymentRepo, ITicketRepository ticketRepo, FlamingoAirwaysDbContext context, IConverter pdfConverter, PdfService pdfService)
+
+        public BookingController(IBookingRepository bookingRepo, IFlightRepository flightRepo, IPaymentRepository paymentRepo, ITicketRepository ticketRepo, FlamingoAirwaysDbContext context)
         {
             _bookingRepo = bookingRepo;
             _flightRepo = flightRepo;
             _paymentRepo = paymentRepo;
             _ticketRepo = ticketRepo;
             _context = context;
-            _pdfconverter = pdfConverter;
-            _pdfService = pdfService;
+
         }
 
         [HttpGet]
@@ -269,55 +266,55 @@ namespace Flamingo_API.Controllers
             return NoContent();
         }
 
-        [HttpGet("{bookingId}/ticket/{ticketId}/download")]
-        public async Task<IActionResult> DownloadTicket(int bookingId, int ticketId)
+        [HttpGet("myTicket")]
+        [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<ActionResult<Booking>> GetMyTicket(int bookingId)
         {
-            var ticket = await _ticketRepo.GetByBookingIdAndTicketIdAsync(bookingId, ticketId);
-
-            if (ticket == null)
+            var userBooking = await _bookingRepo.GetByIdAsync(bookingId);
+            var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserID")?.Value;
+            if (userBooking.UserIdFK.ToString() != currentUserId)
             {
-                return NotFound("Ticket not found....");
+                return Forbid("You are not authorized to download this ticket.");
             }
 
             var booking = await _bookingRepo.GetByIdAsync(bookingId);
+            var tickets = await _ticketRepo.GetByBookingIdAsync(bookingId);
+            //var ticket=await _ticketRepo.GetIdForPdf(id);
             if (booking == null)
             {
-                return NotFound("Booking not found...");
+                return NotFound();
             }
 
-            // Step 3: Create the HTML content for the PDF
-            var htmlContent = $@"
-        <html>
-            <head>
-                <style>
-                    body {{ font-family: Arial, sans-serif; }}
-                    .ticket-details {{ margin: 20px; }}
-                    h1 {{ color: #333; }}
-                    p {{ font-size: 14px; color: #555; }}
-                </style>
-            </head>
-            <body>
-                <div class='ticket-details'>
-                    <h1>Flamingo Airways - Ticket</h1>
-                    <p><strong>Booking ID:</strong> {booking.BookingId}</p>
-                    <p><strong>Ticket ID:</strong> {ticket.TicketId}</p>
-                    <p><strong>Flight ID:</strong> {booking.FlightIdFK}</p>
-                    <p><strong>Passenger Name:</strong> {ticket.PassengerName}</p>
-                    <p><strong>Seat Number:</strong> {ticket.SeatNumber}</p>
-                    <p><strong>PNR:</strong> {booking.PNR}</p>
-                    
-                </div>
-            </body>
-        </html>";
+            var content = new StringBuilder();
+            content.AppendLine($"Booking ID: {booking.BookingId}");
+            content.AppendLine($"Flight Number:{booking.FlightIdFK}");
+            content.AppendLine($"Booking Date:{booking.BookingDate}");
+            
+            content.AppendLine($"PNR:{booking.PNR}");
 
-            // Step 4: Generate the PDF using the IConverter service
-            var pdfBytes = _pdfService.GeneratePdf(htmlContent);
+            foreach (var ticket in tickets)
+            {
+                content.AppendLine($"Ticket ID: {ticket.TicketId}");
+                content.AppendLine($"Passenger Name: {ticket.PassengerName}"); // Adjust field name if necessary
+                content.AppendLine($"Seat Number: {ticket.SeatNumber}"); // Adjust field name if necessary
+                content.AppendLine();
+            }
+            //content.AppendLine($"Passenger Name:{ticket. }");
 
-            // Step 5: Return the PDF as a file download
-            return File(pdfBytes, "application/pdf", $"Ticket_{ticketId}.pdf");
+
+            // Define the path to save the file (modify the path as needed)
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Exports", $"Booking_{booking.BookingId}.txt");
+
+            // Ensure the directory exists
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+
+            // Write the string to the file
+            await System.IO.File.WriteAllTextAsync(filePath, content.ToString());
+
+            // Optionally return the file for download
+            var bytes = await System.IO.File.ReadAllBytesAsync(filePath);
+            return File(bytes, "text/plain", Path.GetFileName(filePath));
         }
-
-        
 
         // Helper method to generate a unique PNR (for illustration purposes)
         private string GeneratePnr()

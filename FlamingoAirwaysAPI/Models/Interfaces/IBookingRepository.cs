@@ -13,6 +13,6 @@ namespace FlamingoAirwaysAPI.Models.Interfaces
         Task DeleteTicketsByBookingIdAsync(int bookingId);
         Task<IEnumerable<Booking>> GetAllBookingsAsync();
 
-      
+        Task<Booking> GetMyTicketAsync(int bookingId);
     }
 }

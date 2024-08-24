@@ -1,16 +1,12 @@
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using FlamingoAirwaysAPI.Models.Interfaces;
 using FlamingoAirwaysAPI.Models.Repositories;
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using DinkToPdf.Contracts;
-using DinkToPdf;
+
 
 namespace FlamingoAirwaysAPI.Models
 
@@ -32,12 +28,12 @@ namespace FlamingoAirwaysAPI.Models
             builder.Services.AddScoped<ITicketRepository, TicketRepository>();
 
             // Add DinkToPdf converter
-            builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
-            builder.Services.AddTransient<PdfService>();
+            
 
 
             builder.Services.AddControllers();
 
+            
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>

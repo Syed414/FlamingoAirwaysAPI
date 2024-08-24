@@ -65,6 +65,9 @@ namespace FlamingoAirwaysAPI.Models
                 .ToListAsync();
         }
 
-        
+        public async Task<Booking> GetMyTicketAsync(int bookingId)
+        {
+            return await _context.Bookings.FirstOrDefaultAsync(b => b.BookingId == bookingId);
+        }
     }
 }
