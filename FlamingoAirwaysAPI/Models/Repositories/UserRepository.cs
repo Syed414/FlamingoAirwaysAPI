@@ -36,18 +36,14 @@ namespace FlamingoAirwaysAPI.Models.Repositories
             return await _context.Users.FindAsync(id);
         }
 
-        public async Task RemoveUser(int id)
+        public async Task<User> GetUserDetails(int userId)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user != null)
-            {
-                _context.Users.Remove(user);
-                await _context.SaveChangesAsync();
-            }
+            return await _context.Users.Where(b => b.UserId == userId).FirstOrDefaultAsync();
         }
-
+        
         public async Task UpdateUser(User user)
         {
+            //throw new NotImplementedException();
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
         }

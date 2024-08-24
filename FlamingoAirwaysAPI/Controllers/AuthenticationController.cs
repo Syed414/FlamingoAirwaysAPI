@@ -33,7 +33,7 @@ namespace FlamingoAirwaysAPI.Controllers
             {
                 return BadRequest("Invalid user request!!!");
             }
-
+            
             var validUser = _repo.ValidateUser(user.Email, user.Password);
 
             if (validUser != null)
@@ -44,7 +44,6 @@ namespace FlamingoAirwaysAPI.Controllers
                 var tokeOptions = new JwtSecurityToken(
                     issuer: Models.ConfigurationManager.AppSetting["Jwt:ValidIssuer"],
                     audience: Models.ConfigurationManager.AppSetting["Jwt:ValidAudience"],
-                    //claims: new List<Claim>(),
                     claims: new List<Claim>(new Claim[] {
                     new Claim(ClaimTypes.Name,validUser.Email),
                     new Claim(ClaimTypes.Role, validUser.Role),
@@ -53,7 +52,9 @@ namespace FlamingoAirwaysAPI.Controllers
                                    }),
                     expires: DateTime.Now.AddMinutes(6),
                     signingCredentials: signinCredentials
-                ); ; ;
+                );
+
+                
                 var tokenString = new JwtSecurityTokenHandler().WriteToken(tokeOptions);
                 return Ok(new JWTTokenResponse { Token = tokenString });
             }

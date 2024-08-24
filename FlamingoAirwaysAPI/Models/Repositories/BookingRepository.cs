@@ -49,8 +49,7 @@ namespace FlamingoAirwaysAPI.Models
 
         public async Task<Booking> GetByIdAsync(int id)
         {
-            return await _context.Bookings
-                .FindAsync(id);
+            return await _context.Bookings.FindAsync(id);
         }
 
         public async Task<Booking> GetByPnrAsync(string pnr)
@@ -65,5 +64,7 @@ namespace FlamingoAirwaysAPI.Models
                 .Where(b => b.UserIdFK == userId) // Use UserIdFK instead of UserId
                 .ToListAsync();
         }
+
+        
     }
 }

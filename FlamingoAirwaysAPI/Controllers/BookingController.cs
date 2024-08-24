@@ -1,16 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using FlamingoAirwaysAPI.Models.Interfaces;
 using static FlamingoAirwaysAPI.Models.FlamingoAirwaysModel;
 using static FlamingoAirwaysAPI.Models.FlamingoAirwaysModel.Payment;
 using FlamingoAirwaysAPI.Models;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace Flamingo_API.Controllers
@@ -45,8 +39,26 @@ namespace Flamingo_API.Controllers
             return Ok(bookings);
         }
 
-        // POST api/Booking
-        [HttpPost]
+        [HttpGet("AllMyBookings")]
+        [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<ActionResult<IEnumerable<Booking>>> GetAllMyBookings()
+
+        {
+            var userIDClaim = User.Claims.FirstOrDefault(c => c.Type == "UserID")?.Value;
+            if (int.TryParse(userIDClaim, out int userid))
+            {
+                var allmy = await _bookingRepo.GetByUserIdAsync(userid);
+                return Ok(allmy);
+            }
+            else
+            {
+                return BadRequest("Invalid Userid");
+            }
+        }
+   
+
+    // POST api/Booking
+    [HttpPost]
         [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<Booking>> PostBooking([FromBody] BookingRequest request)
         {
@@ -140,7 +152,7 @@ namespace Flamingo_API.Controllers
 
         // GET api/Booking/5
         [HttpGet("{id}")]
-        [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [Authorize(Roles = "Admin", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<Booking>> GetBooking(int id)
         {
             var booking = await _bookingRepo.GetByIdAsync(id);
@@ -202,8 +214,6 @@ namespace Flamingo_API.Controllers
 
             return NoContent();
         }
-
-
 
 
         [HttpDelete("{bookingId}/ticket/{ticketId}")]
