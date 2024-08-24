@@ -9,6 +9,8 @@ using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using DinkToPdf.Contracts;
+using DinkToPdf;
 
 namespace FlamingoAirwaysAPI.Models
 
@@ -28,6 +30,11 @@ namespace FlamingoAirwaysAPI.Models
             builder.Services.AddScoped<IBookingRepository, BookingRepository>();
             builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
             builder.Services.AddScoped<ITicketRepository, TicketRepository>();
+
+            // Add DinkToPdf converter
+            builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
+            builder.Services.AddTransient<PdfService>();
+
 
             builder.Services.AddControllers();
 
