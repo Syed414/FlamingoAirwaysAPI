@@ -184,6 +184,11 @@ namespace FlamingoAirwaysAPI.Models
             [DataType(DataType.Currency)]
             [Column(TypeName = "decimal(18, 2)")] 
             public decimal Retainer { get; set; }
+
+            [DataType(DataType.Currency)]
+            [Column(TypeName = "decimal(18, 2)")]
+            public decimal RefundAmount { get; set; }
+
             public Booking Booking { get; set; }
 
             //public int CVV { get; set; }

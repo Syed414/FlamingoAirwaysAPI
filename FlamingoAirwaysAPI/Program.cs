@@ -27,8 +27,6 @@ namespace FlamingoAirwaysAPI.Models
             builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
             builder.Services.AddScoped<ITicketRepository, TicketRepository>();
 
-            // Add DinkToPdf converter
-            
 
 
             builder.Services.AddControllers();
@@ -68,8 +66,6 @@ namespace FlamingoAirwaysAPI.Models
                      }
                 });
             });
-
-            //builder.Services.AddTransient<IUserRepository, UserRepository>();
             builder.Services.AddAuthentication(opt => {
                 opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;

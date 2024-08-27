@@ -109,7 +109,7 @@ namespace Flamingo_API.Controllers
             var booking = new Booking
             {
                 FlightIdFK = request.FlightId,
-                UserIdFK = UserID, // Assuming user ID is provided in the request
+                UserIdFK = UserID, 
                 BookingDate = DateTime.UtcNow,
                 PNR = GeneratePnr(), 
                 IsCancelled = false
@@ -168,8 +168,18 @@ namespace Flamingo_API.Controllers
             return Ok(booking);
         }
 
-        
+        [HttpGet("mypnrbooking/{PNR}")]
+        [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<ActionResult<Booking>> GetBookingWithPNR(string pnr)
+        {
+            var booking = await _bookingRepo.GetByPnrAsync(pnr);
+            if (booking == null)
+            {
+                return NotFound();
+            }
 
+            return Ok(booking);
+        }
         [HttpDelete("{id}")]
         [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> DeleteBooking(int id)
@@ -244,6 +254,8 @@ namespace Flamingo_API.Controllers
             var payment = await _paymentRepo.getByBookingIdAsync(bookingId);
             payment.Amount -= ticket.Price;
             payment.Retainer += ticket.Price * 0.5m;
+            payment.RefundAmount += ticket.Price * 0.5m;
+
 
 
             // Delete the specific ticket

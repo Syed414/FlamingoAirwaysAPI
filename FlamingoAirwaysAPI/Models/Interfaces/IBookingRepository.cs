@@ -8,7 +8,7 @@ namespace FlamingoAirwaysAPI.Models.Interfaces
         Task<IEnumerable<Booking>> GetByUserIdAsync(int userId);
         Task<Booking> GetByIdAsync(int id);
         Task<Booking> GetByPnrAsync(string pnr);
-        Task AddAsync(Booking booking);
+        Task AddAsync(Booking booking);                                   //implement pending
         Task CancelAsync(int id); // Cancel entire booking
         Task DeleteTicketsByBookingIdAsync(int bookingId);
         Task<IEnumerable<Booking>> GetAllBookingsAsync();
