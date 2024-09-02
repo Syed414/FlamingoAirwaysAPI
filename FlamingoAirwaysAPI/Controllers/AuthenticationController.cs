@@ -47,7 +47,7 @@ namespace FlamingoAirwaysAPI.Controllers
                     claims: new List<Claim>(new Claim[] {
                     new Claim(ClaimTypes.Name,validUser.Email),
                     new Claim(ClaimTypes.Role, validUser.Role),
-                    new Claim("UserID", validUser.UserId.ToString())
+                    new Claim("UserID", validUser.UserId)
 
                                    }),
                     expires: DateTime.Now.AddMinutes(6),

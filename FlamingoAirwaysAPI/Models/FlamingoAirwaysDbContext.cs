@@ -3,7 +3,7 @@ using static FlamingoAirwaysAPI.Models.FlamingoAirwaysModel;
 
 namespace FlamingoAirwaysAPI.Models
 {
-    public class FlamingoAirwaysDbContext : DbContext
+    public class FlamingoAirwaysDbContext : DbContext //DbContext is responsible for interacting with the database 
     {
         public FlamingoAirwaysDbContext(DbContextOptions<FlamingoAirwaysDbContext> options) : base(options)
         {

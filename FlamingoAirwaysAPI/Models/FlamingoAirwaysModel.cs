@@ -17,7 +17,7 @@ namespace FlamingoAirwaysAPI.Models
         {
             [Key]
 
-            public int UserId { get; set; }
+            public string UserId { get; set; }
 
             [Required]
             [StringLength(50)]
@@ -92,6 +92,19 @@ namespace FlamingoAirwaysAPI.Models
             [Range(0, int.MaxValue)]
             public int AvailableSeats { get; set; }
 
+            [Required]
+            [DataType(DataType.Currency)]
+            [Column(TypeName = "decimal(18, 2)")]
+            public decimal BPrice { get; set; }
+
+            [Required]
+            [Range(0, int.MaxValue)]
+            public int TotalNumberOfBSeats { get; set; }
+
+            [Required]
+            [Range(0, int.MaxValue)]
+            public int AvailableBSeats { get; set; }
+
         }
 
         [Table("Bookings")]
@@ -104,7 +117,7 @@ namespace FlamingoAirwaysAPI.Models
             public int FlightIdFK { get; set; }
 
             [ForeignKey(nameof(User))]
-            public int UserIdFK { get; set; }
+            public string UserIdFK { get; set; }
 
             [Required]
             [DataType(DataType.DateTime)]
@@ -146,6 +159,7 @@ namespace FlamingoAirwaysAPI.Models
             [Required]
             [Column(TypeName = "decimal(18,2)")]
             public decimal Price { get; set; }
+
 
             public Booking Booking { get; set; }
         }
@@ -196,12 +210,13 @@ namespace FlamingoAirwaysAPI.Models
             public class BookingRequest
             {
                 public int FlightId { get; set; }
-                //public int UserId { get; set; }
                 public int Seats { get; set; }
                 public List<string> PassengerNames { get; set; }
-                public PaymentRequest Payment { get; set; }
+                public int BSeats { get; set; }
+                public List<string> BPassengerNames { get; set; }
                 public int CVV { get; set; }
                 public string BankName { get; set; }
+                public PaymentRequest Payment { get; set; }
 
             }
 
@@ -213,6 +228,13 @@ namespace FlamingoAirwaysAPI.Models
                 public string CardHolderName { get; set; }
                 //public int CVV { get; set; }
 
+            }
+
+            public class PassengerDetails
+            {
+                public string PassengerName { get; set; }
+                public bool HasLegSpace { get; set; }
+                public bool HasLuxury { get; set; }
             }
         }
     }

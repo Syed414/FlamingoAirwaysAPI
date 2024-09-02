@@ -12,9 +12,11 @@ namespace Flamingo_API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-   
+
     public class BookingController : ControllerBase
     {
+
+        //Here we are injecting all the services, repositories that a class needs to perform its functions instead of class creating its own dependencies
         private readonly IBookingRepository _bookingRepo;
         private readonly IFlightRepository _flightRepo;
         private readonly IPaymentRepository _paymentRepo;
@@ -48,58 +50,64 @@ namespace Flamingo_API.Controllers
 
         {
             var userIDClaim = User.Claims.FirstOrDefault(c => c.Type == "UserID")?.Value;
-            if (int.TryParse(userIDClaim, out int userid))
-            {
-                var allmy = await _bookingRepo.GetByUserIdAsync(userid);
-                return Ok(allmy);
-            }
-            else
-            {
-                return BadRequest("Invalid Userid");
-            }
-        }
-   
+            var allmy = await _bookingRepo.GetByUserIdAsync(userIDClaim);
+            return Ok(allmy);
 
-    // POST api/Booking
-    [HttpPost]
+        }
+
+
+        // POST api/Booking
+
+        [HttpPost]
         [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<Booking>> PostBooking([FromBody] BookingRequest request)
         {
-            
-            if (!Regex.IsMatch(request.CVV.ToString() , @"^\d{3}$"))
+
+            if (request == null ||
+            request.Seats <= 0 && request.BSeats <= 0 ||
+            request.Payment == null ||
+            string.IsNullOrEmpty(request.Payment.CardNumber) ||
+            string.IsNullOrEmpty(request.Payment.CardHolderName) ||
+            string.IsNullOrEmpty(request.BankName) ||
+            request.CVV <= 0) // Assuming CVV should be a positive integer
+            {
+                return BadRequest("Invalid request data.");
+            }
+
+            // Validate CVV
+            if (!Regex.IsMatch(request.CVV.ToString(), @"^\d{3}$"))
             {
                 return BadRequest("Invalid CVV. It must be 3 digits.");
             }
-            if (!Regex.IsMatch(request.Payment.CardNumber, @"^\d{12}$"))
+
+            // Validate Card Number (must be 13 to 16 digits)
+            if (!Regex.IsMatch(request.Payment.CardNumber, @"^\d{13,16}$"))
             {
-                return BadRequest("Invalid card number. It must be 12 digits.");
+                return BadRequest("Invalid card number. It must be between 13 and 16 digits.");
             }
 
-            var validBank = new List<string> { "Kotak", "SBI", "Axis", "HDFC" };
-            if (!validBank.Contains(request.BankName))
+            // Validate Bank Name
+            var validBanks = new HashSet<string> { "Kotak", "SBI", "Axis", "HDFC" };
+            if (!validBanks.Contains(request.BankName))
             {
                 return BadRequest("Invalid bank name. Please select a valid bank.");
             }
 
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "UserID");
-
-            if (userIdClaim == null)
-            {
-                return Unauthorized("User ID not found in token.");
-            }
-
-            if (!int.TryParse(userIdClaim.Value, out var UserID))
-            {
-                return Unauthorized("Invalid User ID format in token.");
-            }
-
+            // Validate Flight
             var flight = await _flightRepo.GetFlightById(request.FlightId);
-
             if (flight == null)
             {
                 return NotFound("Flight not found.");
             }
 
+            // Validate Payment Type
+            var validPaymentTypes = new HashSet<string> { "Credit Card", "Debit Card" };
+            if (!validPaymentTypes.Contains(request.Payment.PaymentType))
+            {
+                return BadRequest("This payment method is not available. Please select Credit Card or Debit Card.");
+            }
+
+            // Validate Seat Availability
             if (request.Seats > flight.AvailableSeats)
             {
                 return BadRequest("Not enough seats available.");
@@ -108,16 +116,16 @@ namespace Flamingo_API.Controllers
             // Create booking
             var booking = new Booking
             {
+
                 FlightIdFK = request.FlightId,
-                UserIdFK = UserID, 
+                UserIdFK = HttpContext.User.FindFirst("UserId")?.Value,
                 BookingDate = DateTime.UtcNow,
-                PNR = GeneratePnr(), 
+                PNR = GeneratePnr(),
                 IsCancelled = false
             };
 
             await _bookingRepo.AddAsync(booking);
 
-            // Process payment
             var payment = new Payment
             {
                 BookingIdFK = booking.BookingId,
@@ -125,32 +133,44 @@ namespace Flamingo_API.Controllers
                 CardNumber = request.Payment.CardNumber,
                 CardHolderName = request.Payment.CardHolderName,
                 PaymentDate = DateTime.UtcNow,
-                Amount = flight.Price * request.Seats
+                Amount = (flight.Price * request.Seats) + (flight.BPrice * request.BSeats)
             };
-
             await _paymentRepo.AddAsync(payment);
-
-            // Create tickets
             for (int i = 0; i < request.Seats; i++)
             {
                 var ticket = new Ticket
                 {
                     BookingIdF = booking.BookingId,
-                    SeatNumber = $"Seat-{flight.AvailableSeats-i}", // Generate seat number
+                    SeatNumber = $"E-{flight.TotalNumberOfSeats - flight.AvailableSeats + 1}", // Generate seat number
                     PassengerName = request.PassengerNames[i],
                     Price = flight.Price
                 };
 
                 await _ticketRepo.AddAsync(ticket);
-
-                
-                
-                
+                flight.AvailableSeats -= 1;
+                await _flightRepo.UpdateAsync(flight);
             }
-            //decrease seat from flight 
-            flight.AvailableSeats = flight.AvailableSeats - request.Seats;
-            await _flightRepo.UpdateAsync(flight);
+            
+            //return CreatedAtAction(nameof(GetBooking), new { id = booking.BookingId }, booking);
+
+            for (int i = 0; i < request.BSeats; i++)
+            {
+                var ticket = new Ticket
+                {
+                    BookingIdF = booking.BookingId,
+                    SeatNumber = $"B-{flight.AvailableBSeats - i}", // Generate seat number
+                    PassengerName = request.BPassengerNames[i],
+                    Price = flight.BPrice
+                };
+
+                await _ticketRepo.AddAsync(ticket);
+                //Decrease seats from the flight....
+                flight.AvailableBSeats -= 1;
+                await _flightRepo.UpdateAsync(flight);
+            }
+
             return CreatedAtAction(nameof(GetBooking), new { id = booking.BookingId }, booking);
+
         }
 
         // GET api/Booking/5
@@ -168,18 +188,7 @@ namespace Flamingo_API.Controllers
             return Ok(booking);
         }
 
-        [HttpGet("mypnrbooking/{PNR}")]
-        [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<ActionResult<Booking>> GetBookingWithPNR(string pnr)
-        {
-            var booking = await _bookingRepo.GetByPnrAsync(pnr);
-            if (booking == null)
-            {
-                return NotFound();
-            }
 
-            return Ok(booking);
-        }
         [HttpDelete("{id}")]
         [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> DeleteBooking(int id)
@@ -198,6 +207,37 @@ namespace Flamingo_API.Controllers
             }
 
             var flight = await _flightRepo.GetByBookingIdAsync(id);
+
+            //calculate the difference in days
+            TimeSpan difference = flight.DepartureDate - DateTime.Now;
+            int daysRemaining = difference.Days;
+
+            var refundPercent = 0m;
+
+            if (daysRemaining >= 30)
+            {
+                refundPercent = 0.8m; //80% refund
+            }
+            else if (daysRemaining >= 14)
+            {
+                refundPercent = 0.5m;
+            }
+            else if (daysRemaining >= 7)
+            {
+                refundPercent = 0.3m;
+            }
+            else if (daysRemaining >= 3)
+            {
+                refundPercent = 0.1m;
+            }
+            else if (daysRemaining >= 1)
+            {
+                refundPercent = 0.05m; // 5% refund
+            }
+            else
+            {
+                refundPercent = 0m;
+            }
 
             // Delete tickets
             var tickets = await _ticketRepo.GetByBookingIdAsync(id);
@@ -219,9 +259,9 @@ namespace Flamingo_API.Controllers
             var payment = await _paymentRepo.getByBookingIdAsync(id);
             if (payment != null)
             {
-                payment.Retainer += payment.Amount * 0.5m;
+                payment.Retainer += payment.Amount * (1 - refundPercent);
                 payment.Amount = 0;
-
+                payment.RefundAmount += payment.Amount * refundPercent;
                 await _paymentRepo.UpdateAsync(payment);
             }
 
@@ -234,7 +274,7 @@ namespace Flamingo_API.Controllers
         public async Task<IActionResult> DeleteTicket(int bookingId, int ticketId)
         {
             // Fetch the ticket by its ID and Booking ID
-            
+
             var ticket = await _ticketRepo.GetByBookingIdAndTicketIdAsync(bookingId, ticketId);
 
             if (ticket == null)
@@ -250,20 +290,55 @@ namespace Flamingo_API.Controllers
                 return Forbid("You are not authorized to delete this ticket.");
             }
 
-           //payment update
+            var flight= await _flightRepo.GetByBookingIdAsync(bookingId);
+
+            //calculate the difference in days
+            TimeSpan difference = flight.DepartureDate - DateTime.Now;
+            int daysRemaining = difference.Days;
+
+            var refundPercent = 0m;
+
+            if (daysRemaining >= 30)
+            {
+                refundPercent = 0.8m; //80% refund
+            }
+            else if (daysRemaining >= 14)
+            {
+                refundPercent = 0.5m;
+            }
+            else if (daysRemaining >= 7)
+            {
+                refundPercent = 0.3m;
+            }
+            else if (daysRemaining >= 3)
+            {
+                refundPercent = 0.1m;
+            }
+            else if (daysRemaining >= 1)  
+            {
+                refundPercent = 0.05m; // 5% refund
+            }
+            else
+            {
+                refundPercent = 0m;
+            }
+            //payment update
             var payment = await _paymentRepo.getByBookingIdAsync(bookingId);
             payment.Amount -= ticket.Price;
-            payment.Retainer += ticket.Price * 0.5m;
-            payment.RefundAmount += ticket.Price * 0.5m;
+            payment.Retainer += ticket.Price * (1 - refundPercent);
+            payment.RefundAmount += ticket.Price * refundPercent;
 
-
-
+            // Determine seat type and update availability
+            if (ticket.SeatNumber.StartsWith("E-")) // Economy seat
+            {
+                flight.AvailableSeats += 1;
+            }
+            else if (ticket.SeatNumber.StartsWith("B-")) // Business seat
+            {
+                flight.AvailableBSeats += 1;
+            }
             // Delete the specific ticket
             await _ticketRepo.DeleteAsync(ticket.TicketId);
-
-            //update the number of seats in flight
-            var flight = await _flightRepo.GetByBookingIdAsync(bookingId);
-            flight.AvailableSeats += 1;
             await _flightRepo.UpdateAsync(flight);
 
             // Check if there are any remaining tickets for this booking
@@ -275,7 +350,7 @@ namespace Flamingo_API.Controllers
                 await _bookingRepo.CancelAsync(bookingId);
             }
 
-            return NoContent();
+            return Ok($"Ticket Deleted - {payment.RefundAmount} refunded");
         }
 
         [HttpGet("myTicket")]
@@ -291,7 +366,7 @@ namespace Flamingo_API.Controllers
 
             var booking = await _bookingRepo.GetByIdAsync(bookingId);
             var tickets = await _ticketRepo.GetByBookingIdAsync(bookingId);
-            //var ticket=await _ticketRepo.GetIdForPdf(id);
+
             if (booking == null)
             {
                 return NotFound();
@@ -301,17 +376,20 @@ namespace Flamingo_API.Controllers
             content.AppendLine($"Booking ID: {booking.BookingId}");
             content.AppendLine($"Flight Number:{booking.FlightIdFK}");
             content.AppendLine($"Booking Date:{booking.BookingDate}");
-            
+
             content.AppendLine($"PNR:{booking.PNR}");
 
             foreach (var ticket in tickets)
             {
                 content.AppendLine($"Ticket ID: {ticket.TicketId}");
-                content.AppendLine($"Passenger Name: {ticket.PassengerName}"); // Adjust field name if necessary
-                content.AppendLine($"Seat Number: {ticket.SeatNumber}"); // Adjust field name if necessary
+                content.AppendLine($"Passenger Name: {ticket.PassengerName}");
+                content.AppendLine($"Seat Number: {ticket.SeatNumber}");
                 content.AppendLine();
             }
-            //content.AppendLine($"Passenger Name:{ticket. }");
+
+
+            var TicketPrice = await _paymentRepo.getByBookingIdAsync(bookingId);
+            content.AppendLine($"Price of the Ticket: {TicketPrice.Amount}");
 
 
             // Define the path to save the file (modify the path as needed)
@@ -333,7 +411,11 @@ namespace Flamingo_API.Controllers
         {
             return Guid.NewGuid().ToString().Substring(0, 6).ToUpper();
         }
+        private string UniqueUserID()
+        {
+            return Guid.NewGuid().ToString().Substring(0, 6).ToUpper();
+        }
     }
 
-    
+
 }

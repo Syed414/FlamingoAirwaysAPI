@@ -12,8 +12,9 @@ namespace FlamingoAirwaysAPI.Controllers
     [ApiController]
     public class RegisterController : ControllerBase
     {
+        //here we are injecting the repositories that a class needs to perform its functions instead of class creating it's own dependencies
         IUserRepository _repo;
-        public RegisterController(IUserRepository repo)
+        public RegisterController(IUserRepository repo) //injecting the dependency inside the ctor..
         {
             _repo = repo;
         }
@@ -30,15 +31,10 @@ namespace FlamingoAirwaysAPI.Controllers
         public async Task<ActionResult<User>> GetUser()
         {
            var UserIdClaim = User.Claims.FirstOrDefault(c => c.Type == "UserID")?.Value;
-            if (int.TryParse(UserIdClaim, out int userid))
-            {
-                var MyDetails =  await _repo.GetUserDetails(userid);  
-                return Ok(MyDetails);
-            }
-            else
-            {
-                return BadRequest("Wrong User");
-            }
+           var MyDetails = await _repo.GetUserDetails(UserIdClaim);
+           
+            return Ok(MyDetails);
+
         }
 
         [HttpGet("email/{email}")]
@@ -63,8 +59,12 @@ namespace FlamingoAirwaysAPI.Controllers
                 return BadRequest();
             }
 
+            if(_repo.CheckMail(user.Email))
+                return BadRequest("User with same email already exists");
+
             //Before adding the password to DB Hash the password
             user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
+            user.UserId = UniqueUserID();
 
             await _repo.AddUser(user);
             return Ok();
@@ -74,19 +74,16 @@ namespace FlamingoAirwaysAPI.Controllers
         [HttpPut("Update")]
         public async Task<IActionResult> Put([FromBody] UpdateUser user)
         {
-
-
             var UseridClaims = User.Claims.FirstOrDefault(c => c.Type == "UserID")?.Value;
-            bool x = int.TryParse(UseridClaims, out int useridClaim);
 
             var UserRoleClaim = HttpContext.User.FindFirst(ClaimTypes.Role)?.Value;
 
-            var existingUser = await _repo.GetUserById(useridClaim);
+            var existingUser = await _repo.GetUserById(UseridClaims);
             if (existingUser == null)
             {
                 return NotFound($"User not found...");
             }
-            existingUser.UserId = useridClaim;
+            existingUser.UserId = UseridClaims;
             existingUser.FirstName = user.FirstName;
             existingUser.LastName = user.LastName;
             existingUser.Email = user.Email;
@@ -104,10 +101,12 @@ namespace FlamingoAirwaysAPI.Controllers
                 Console.WriteLine($"Error updating user: {ex.Message}");
                 return StatusCode(500, "An error ocuured while updating the user.");
             }
-            return NoContent();
-
+            return NoContent();            
+        }
+        private string UniqueUserID()
+        {
+            return Guid.NewGuid().ToString().Substring(0, 6).ToUpper();
         }
 
-        
     }
 }

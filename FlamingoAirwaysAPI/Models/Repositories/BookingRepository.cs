@@ -58,7 +58,7 @@ namespace FlamingoAirwaysAPI.Models
                 .FirstOrDefaultAsync(b => b.PNR == pnr);
         }
 
-        public async Task<IEnumerable<Booking>> GetByUserIdAsync(int userId)
+        public async Task<IEnumerable<Booking>> GetByUserIdAsync(string userId)
         {
             return await _context.Bookings
                 .Where(b => b.UserIdFK == userId) // Use UserIdFK instead of UserId

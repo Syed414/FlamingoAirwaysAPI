@@ -18,25 +18,28 @@ namespace FlamingoAirwaysAPI.Models
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
+
+            //registers Dbcontext and tells the DI Container how to congigure it..
+            //lambda expression used to config Dbcontext to use sql server 
             builder.Services.AddDbContext<FlamingoAirwaysDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("AirwaysCnString")));
 
-            builder.Services.AddScoped<IUserRepository, UserRepository>(); //one obj, one user 
-            builder.Services.AddScoped<IFlightRepository, FlightRepository>();
+            builder.Services.AddScoped<IUserRepository, UserRepository>(); //new instance is created for each http request
+            builder.Services.AddScoped<IFlightRepository, FlightRepository>();//every time it needs an IFlightrepo during an http request create a new instance of flightRepository
             builder.Services.AddScoped<IBookingRepository, BookingRepository>();
             builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
             builder.Services.AddScoped<ITicketRepository, TicketRepository>();
 
 
 
-            builder.Services.AddControllers();
+            builder.Services.AddControllers(); //add controller services to the DI
 
             
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
             {
-                options.SwaggerDoc("V1", new OpenApiInfo
+                options.SwaggerDoc("V1", new OpenApiInfo //Registers a swagger document
                 {
                     Version = "V1",
                     Title = "WebAPI",
@@ -46,7 +49,7 @@ namespace FlamingoAirwaysAPI.Models
                 {
                     Scheme = "Bearer",
                     BearerFormat = "Jwt",
-                    In = ParameterLocation.Header,
+                    In = ParameterLocation.Header, //token will be passed in http header
                     Name = "Authorization",
                     Description = "Bearer Authentication with Jwt Token",
                     Type = SecuritySchemeType.Http
@@ -102,12 +105,12 @@ namespace FlamingoAirwaysAPI.Models
                 });
             }
 
-            app.UseHttpsRedirection();
+            app.UseHttpsRedirection(); //Redirects HTTP requests to HTTPS, ensuring secure communication.
 
             app.UseAuthentication();
             app.UseAuthorization();
 
-            app.MapControllers();
+            app.MapControllers(); //Connects the http req to the corresponding controller
 
             app.Run();
         }

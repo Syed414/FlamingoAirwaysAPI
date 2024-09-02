@@ -15,7 +15,7 @@ namespace FlamingoAirwaysAPI.Models.Repositories
         public async Task AddFlight(Flight flight)
         {
             _context.Flights.Add(flight);
-            await _context.SaveChangesAsync();  // This is crucial to save the data
+            await _context.SaveChangesAsync();  
         }
 
         public async Task<IEnumerable<Flight>> GetAllFlights()
