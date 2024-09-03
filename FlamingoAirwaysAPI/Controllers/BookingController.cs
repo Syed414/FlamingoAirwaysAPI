@@ -10,11 +10,65 @@ using System.Text;
 
 namespace Flamingo_API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/Booking")]
     [ApiController]
 
     public class BookingController : ControllerBase
     {
+
+
+        // Helper method to generate a unique PNR (for illustration purposes)
+
+        private static decimal calcRefund(Flight flight)
+        {
+            
+            //calculate the difference in days
+            TimeSpan difference = flight.DepartureDate - DateTime.Now;
+            int daysRemaining = difference.Days;
+
+            var refundPercent = 0m;
+
+            if (daysRemaining >= 30)
+            {
+                refundPercent = 0.8m; //80% refund
+            }
+            else if (daysRemaining >= 14)
+            {
+                refundPercent = 0.5m;
+            }
+            else if (daysRemaining >= 7)
+            {
+                refundPercent = 0.3m;
+            }
+            else if (daysRemaining >= 3)
+            {
+                refundPercent = 0.1m;
+            }
+            else if (daysRemaining >= 1)
+            {
+                refundPercent = 0.05m; // 5% refund
+            }
+            else
+            {
+                refundPercent = 0m;
+            }
+
+            return refundPercent;
+        }
+
+
+        private string GeneratePnr()
+        {
+            return Guid.NewGuid().ToString().Substring(0, 6).ToUpper();
+        }
+        private string UniqueUserID()
+        {
+            return Guid.NewGuid().ToString().Substring(0, 6).ToUpper();
+        }
+
+
+
+
 
         //Here we are injecting all the services, repositories that a class needs to perform its functions instead of class creating its own dependencies
         private readonly IBookingRepository _bookingRepo;
@@ -22,20 +76,23 @@ namespace Flamingo_API.Controllers
         private readonly IPaymentRepository _paymentRepo;
         private readonly ITicketRepository _ticketRepo;
         private readonly IUserRepository _userRepo;
-        private readonly FlamingoAirwaysDbContext _context;
+        
 
 
-        public BookingController(IBookingRepository bookingRepo, IFlightRepository flightRepo, IPaymentRepository paymentRepo, ITicketRepository ticketRepo, FlamingoAirwaysDbContext context)
+        public BookingController(IBookingRepository bookingRepo, IFlightRepository flightRepo, IPaymentRepository paymentRepo, ITicketRepository ticketRepo, IUserRepository userRepo)
         {
             _bookingRepo = bookingRepo;
             _flightRepo = flightRepo;
             _paymentRepo = paymentRepo;
             _ticketRepo = ticketRepo;
-            _context = context;
+            _userRepo = userRepo;
 
         }
 
-        [HttpGet]
+
+
+
+        [HttpGet("getAllBookings")]
         [Authorize(Roles = "Admin", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<IEnumerable<Booking>>> GetAllBookings()
 
@@ -44,21 +101,37 @@ namespace Flamingo_API.Controllers
             return Ok(bookings);
         }
 
-        [HttpGet("AllMyBookings")]
+
+        [HttpGet("getAllMyBookings")]
         [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<IEnumerable<Booking>>> GetAllMyBookings()
-
         {
             var userIDClaim = User.Claims.FirstOrDefault(c => c.Type == "UserID")?.Value;
             var allmy = await _bookingRepo.GetByUserIdAsync(userIDClaim);
             return Ok(allmy);
+        }
 
+        // GET api/Booking/5
+        [HttpGet("getBookingByID/{id}")]
+        [Authorize(Roles = "Admin", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<ActionResult<Booking>> GetBooking(int id)
+        {
+            var booking = await _bookingRepo.GetByIdAsync(id);
+            var ticket = await _ticketRepo.GetByBookingIdAsync(id);
+            if (booking == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(booking);
         }
 
 
-        // POST api/Booking
 
-        [HttpPost]
+
+
+        // POST api/Booking
+        [HttpPost("postBooking/bookTickets")]
         [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<Booking>> PostBooking([FromBody] BookingRequest request)
         {
@@ -158,7 +231,7 @@ namespace Flamingo_API.Controllers
                 var ticket = new Ticket
                 {
                     BookingIdF = booking.BookingId,
-                    SeatNumber = $"B-{flight.AvailableBSeats - i}", // Generate seat number
+                    SeatNumber = $"B-{flight.TotalNumberOfBSeats - flight.AvailableBSeats + 1}", // Generate seat number
                     PassengerName = request.BPassengerNames[i],
                     Price = flight.BPrice
                 };
@@ -173,23 +246,9 @@ namespace Flamingo_API.Controllers
 
         }
 
-        // GET api/Booking/5
-        [HttpGet("{id}")]
-        [Authorize(Roles = "Admin", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<ActionResult<Booking>> GetBooking(int id)
-        {
-            var booking = await _bookingRepo.GetByIdAsync(id);
-            var ticket = await _ticketRepo.GetByBookingIdAsync(id);
-            if (booking == null)
-            {
-                return NotFound();
-            }
+        
 
-            return Ok(booking);
-        }
-
-
-        [HttpDelete("{id}")]
+        [HttpDelete("deleteBooking/{id}")]
         [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> DeleteBooking(int id)
         {
@@ -208,36 +267,8 @@ namespace Flamingo_API.Controllers
 
             var flight = await _flightRepo.GetByBookingIdAsync(id);
 
-            //calculate the difference in days
-            TimeSpan difference = flight.DepartureDate - DateTime.Now;
-            int daysRemaining = difference.Days;
 
-            var refundPercent = 0m;
-
-            if (daysRemaining >= 30)
-            {
-                refundPercent = 0.8m; //80% refund
-            }
-            else if (daysRemaining >= 14)
-            {
-                refundPercent = 0.5m;
-            }
-            else if (daysRemaining >= 7)
-            {
-                refundPercent = 0.3m;
-            }
-            else if (daysRemaining >= 3)
-            {
-                refundPercent = 0.1m;
-            }
-            else if (daysRemaining >= 1)
-            {
-                refundPercent = 0.05m; // 5% refund
-            }
-            else
-            {
-                refundPercent = 0m;
-            }
+            var refundPercent = calcRefund(flight);
 
             // Delete tickets
             var tickets = await _ticketRepo.GetByBookingIdAsync(id);
@@ -269,7 +300,7 @@ namespace Flamingo_API.Controllers
         }
 
 
-        [HttpDelete("{bookingId}/ticket/{ticketId}")]
+        [HttpDelete("deleteTicket/{bookingId}/{ticketId}")]
         [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> DeleteTicket(int bookingId, int ticketId)
         {
@@ -292,36 +323,8 @@ namespace Flamingo_API.Controllers
 
             var flight= await _flightRepo.GetByBookingIdAsync(bookingId);
 
-            //calculate the difference in days
-            TimeSpan difference = flight.DepartureDate - DateTime.Now;
-            int daysRemaining = difference.Days;
+            var refundPercent = calcRefund(flight);
 
-            var refundPercent = 0m;
-
-            if (daysRemaining >= 30)
-            {
-                refundPercent = 0.8m; //80% refund
-            }
-            else if (daysRemaining >= 14)
-            {
-                refundPercent = 0.5m;
-            }
-            else if (daysRemaining >= 7)
-            {
-                refundPercent = 0.3m;
-            }
-            else if (daysRemaining >= 3)
-            {
-                refundPercent = 0.1m;
-            }
-            else if (daysRemaining >= 1)  
-            {
-                refundPercent = 0.05m; // 5% refund
-            }
-            else
-            {
-                refundPercent = 0m;
-            }
             //payment update
             var payment = await _paymentRepo.getByBookingIdAsync(bookingId);
             payment.Amount -= ticket.Price;
@@ -353,69 +356,91 @@ namespace Flamingo_API.Controllers
             return Ok($"Ticket Deleted - {payment.RefundAmount} refunded");
         }
 
-        [HttpGet("myTicket")]
+        
+
+        [HttpGet("downloadTicket")]
         [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<ActionResult<Booking>> GetMyTicket(int bookingId)
+
+        public async Task<IActionResult> DownloadTicket(int bookingId)
         {
-            var userBooking = await _bookingRepo.GetByIdAsync(bookingId);
-            var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserID")?.Value;
-            if (userBooking.UserIdFK.ToString() != currentUserId)
+           
+            
+            var booking = await _bookingRepo.GetByIdAsync(bookingId);
+            if (booking == null)
+            {
+                return NotFound("Booking not found.");
+
+            }
+           
+
+            var currUser = await _userRepo.GetUserById(booking.UserIdFK);
+            if(currUser == null)
+            {
+                return NotFound("User not found");
+            }
+            var currentUserIdClaim = User.Claims.FirstOrDefault(c => c.Type == "UserID")?.Value; //This gets the userid of the current authorized user from the token. User id is used to verify the current user 
+            if (currUser.UserId != currentUserIdClaim)
             {
                 return Forbid("You are not authorized to download this ticket.");
             }
 
-            var booking = await _bookingRepo.GetByIdAsync(bookingId);
+
             var tickets = await _ticketRepo.GetByBookingIdAsync(bookingId);
 
-            if (booking == null)
+            if (!tickets.Any())
             {
-                return NotFound();
+                return NotFound("No tickets found for this booking.");
             }
 
-            var content = new StringBuilder();
-            content.AppendLine($"Booking ID: {booking.BookingId}");
-            content.AppendLine($"Flight Number:{booking.FlightIdFK}");
-            content.AppendLine($"Booking Date:{booking.BookingDate}");
-
-            content.AppendLine($"PNR:{booking.PNR}");
-
-            foreach (var ticket in tickets)
+            var flight = await _flightRepo.GetByBookingIdAsync(booking.FlightIdFK);
+            if (flight == null)
             {
-                content.AppendLine($"Ticket ID: {ticket.TicketId}");
-                content.AppendLine($"Passenger Name: {ticket.PassengerName}");
-                content.AppendLine($"Seat Number: {ticket.SeatNumber}");
-                content.AppendLine();
+                return NotFound("Flight not found.");
             }
-
-
-            var TicketPrice = await _paymentRepo.getByBookingIdAsync(bookingId);
-            content.AppendLine($"Price of the Ticket: {TicketPrice.Amount}");
-
-
-            // Define the path to save the file (modify the path as needed)
-            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Exports", $"Booking_{booking.BookingId}.txt");
-
-            // Ensure the directory exists
-            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
-
-            // Write the string to the file
-            await System.IO.File.WriteAllTextAsync(filePath, content.ToString());
-
-            // Optionally return the file for download
-            var bytes = await System.IO.File.ReadAllBytesAsync(filePath);
-            return File(bytes, "text/plain", Path.GetFileName(filePath));
+            using (var memoryStream = new MemoryStream())
+            {
+                using (var writer = new StreamWriter(memoryStream))
+                {
+                    writer.WriteLine("********************************************************");
+                    writer.WriteLine("                     FLAMINGO AIRWAYS                   ");
+                    writer.WriteLine("--------------------------------------------------------");
+                    writer.WriteLine("                     FLIGHT TICKET                     ");
+                    writer.WriteLine("********************************************************");
+                    writer.WriteLine($"Passenger: {currUser.FirstName} {currUser.LastName}");
+                    writer.WriteLine($"PNR: {booking.PNR}");
+                    writer.WriteLine();
+                    writer.WriteLine("Flight Information:");
+                    writer.WriteLine($"  Origin: {flight.Origin}");
+                    writer.WriteLine($"  Destination: {flight.Destination}");
+                    writer.WriteLine($"  Departure: {flight.DepartureDate:dddd, MMMM dd, yyyy HH:mm}");
+                    writer.WriteLine($"  Arrival: {flight.ArrivalDate:dddd, MMMM dd, yyyy HH:mm}");
+                    writer.WriteLine();
+                    writer.WriteLine("Ticket Details:");
+                    writer.WriteLine("--------------------------------------------------------");
+                    foreach (var ticket in tickets)
+                    {
+                        writer.WriteLine($"  Seat: {ticket.SeatNumber}");
+                        writer.WriteLine($"  Passenger: {ticket.PassengerName}");
+                        writer.WriteLine($"  Price: ₹{ticket.Price:F2}");
+                        writer.WriteLine("--------------------------------------------------------");
+                    }
+                    writer.WriteLine();
+                    writer.WriteLine("Thank you for flying with us!");
+                    writer.WriteLine("********************************************************");
+                    writer.Flush();
+                    memoryStream.Position = 0;
+                    var fileName = $"Ticket_{booking.PNR}.txt";
+                    return File(memoryStream.ToArray(), "text/plain", fileName);
+                }
+            }
         }
 
-        // Helper method to generate a unique PNR (for illustration purposes)
-        private string GeneratePnr()
-        {
-            return Guid.NewGuid().ToString().Substring(0, 6).ToUpper();
-        }
-        private string UniqueUserID()
-        {
-            return Guid.NewGuid().ToString().Substring(0, 6).ToUpper();
-        }
+        
     }
+
+
+
+   
 
 
 }

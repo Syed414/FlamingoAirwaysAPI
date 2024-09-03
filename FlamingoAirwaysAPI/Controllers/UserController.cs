@@ -1,4 +1,6 @@
 ﻿using FlamingoAirwaysAPI.Models.Interfaces;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -10,48 +12,20 @@ namespace FlamingoAirwaysAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class RegisterController : ControllerBase
+    public class UserController : ControllerBase
     {
         //here we are injecting the repositories that a class needs to perform its functions instead of class creating it's own dependencies
         IUserRepository _repo;
-        public RegisterController(IUserRepository repo) //injecting the dependency inside the ctor..
+       
+        
+        public UserController(IUserRepository repo) //injecting the dependency inside the ctor..
         {
             _repo = repo;
         }
-        // GET: api/<UserController>
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
-        {
-            var users = await _repo.GetAllUsers();
-            return Ok(users);
-        }
-
-        // GET api/<UserController>/5
-        [HttpGet("GetMyDetails")]
-        public async Task<ActionResult<User>> GetUser()
-        {
-           var UserIdClaim = User.Claims.FirstOrDefault(c => c.Type == "UserID")?.Value;
-           var MyDetails = await _repo.GetUserDetails(UserIdClaim);
-           
-            return Ok(MyDetails);
-
-        }
-
-        [HttpGet("email/{email}")]
-        public async Task<ActionResult<User>> GetUserByEmail(string email)
-        {
-            var user = await _repo.GetUserByEmailAsync(email);
-
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(user);
-        }
 
         // POST api/<UserController>
-        [HttpPost("register")]
+        [HttpPost("postUser/register")]
+        [AllowAnonymous()]
         public async Task<IActionResult> Post([FromBody] User user)
         {
             if (user == null)
@@ -59,7 +33,7 @@ namespace FlamingoAirwaysAPI.Controllers
                 return BadRequest();
             }
 
-            if(_repo.CheckMail(user.Email))
+            if (_repo.CheckMail(user.Email))
                 return BadRequest("User with same email already exists");
 
             //Before adding the password to DB Hash the password
@@ -67,11 +41,36 @@ namespace FlamingoAirwaysAPI.Controllers
             user.UserId = UniqueUserID();
 
             await _repo.AddUser(user);
-            return Ok();
+            return Ok("Registration Successful!!");
+        }
+
+
+
+        // GET: api/<UserController>
+        [HttpGet("getAllUsers")]
+        [Authorize(Roles = "Admin", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
+        {
+            var users = await _repo.GetAllUsers();
+            return Ok(users);
+        }
+
+      
+        // GET api/<UserController>/5
+        [HttpGet("GetMyDetails")]
+        [AllowAnonymous()]
+        public async Task<ActionResult<User>> GetUser()
+        {
+           var UserIdClaim = User.Claims.FirstOrDefault(c => c.Type == "UserID")?.Value;
+           var MyDetails = await _repo.GetUserById(UserIdClaim);
+           
+            return Ok(MyDetails);
+
         }
 
         // PUT api/<UserController>/5
-        [HttpPut("Update")]
+        [HttpPut("putUser/Update")]
+        [AllowAnonymous()]
         public async Task<IActionResult> Put([FromBody] UpdateUser user)
         {
             var UseridClaims = User.Claims.FirstOrDefault(c => c.Type == "UserID")?.Value;
@@ -101,7 +100,7 @@ namespace FlamingoAirwaysAPI.Controllers
                 Console.WriteLine($"Error updating user: {ex.Message}");
                 return StatusCode(500, "An error ocuured while updating the user.");
             }
-            return NoContent();            
+            return Ok("Updation Successful!!");            
         }
         private string UniqueUserID()
         {

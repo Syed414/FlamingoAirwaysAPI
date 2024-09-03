@@ -5,7 +5,6 @@ namespace FlamingoAirwaysAPI.Models.Interfaces
     public interface IUserRepository
     {
         Task<User> GetUserById(string id);
-        Task<User> GetUserDetails(string userId);
         Task<IEnumerable<User>> GetAllUsers();
         Task<User> GetUserByEmailAsync(string email);
         Task AddUser(User user);

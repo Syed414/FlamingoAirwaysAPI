@@ -20,7 +20,9 @@ namespace FlamingoAirwaysAPI.Models.Repositories
 
         public async Task<IEnumerable<User>> GetAllUsers() //Async way to retreive all users by not blocking threads during database execution
         {
-            return await _context.Users.ToListAsync();
+            return await _context.Users
+                .Where(u => u.Role=="User")
+                .ToListAsync();
         }
 
         public async Task<User> GetUserByEmailAsync(string email)
@@ -33,11 +35,6 @@ namespace FlamingoAirwaysAPI.Models.Repositories
         public async Task<User> GetUserById(string id)
         {
             return await _context.Users.FindAsync(id);
-        }
-
-        public async Task<User> GetUserDetails(string userId)
-        {
-            return await _context.Users.Where(b => b.UserId == userId).FirstOrDefaultAsync();
         }
         
         public async Task UpdateUser(User user)

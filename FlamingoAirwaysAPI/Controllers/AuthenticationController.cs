@@ -61,6 +61,10 @@ namespace FlamingoAirwaysAPI.Controllers
             return Unauthorized();
         }
 
-            
+        public class JWTTokenResponse
+        {
+            public string? Token { get; set; }
+        }
+
     }
 }

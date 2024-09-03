@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace FlamingoAirwaysAPI.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/Flight")]
     [ApiController]
     public class FlightController : ControllerBase
     {
@@ -19,19 +19,22 @@ namespace FlamingoAirwaysAPI.Controllers
         {
             _repo = repo;
         }
+
+
         // GET: api/<FlamingoAirwaysController>
-        [HttpGet]
-        [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<ActionResult<List<FlamingoAirwaysModel>>> ShowAll()
+        [HttpGet("getAllFlights")]
+        [AllowAnonymous()]
+        public async Task<ActionResult<List<Flight>>> ShowAll()
         {
             var flights = await _repo.GetAllFlights();
             return Ok(flights);
         }
 
+
         // GET api/<FlamingoAirwaysController>/5
-        [AllowAnonymous]
-        [HttpGet("{id}")]
-        public async Task<ActionResult<FlamingoAirwaysModel>> FindFlight(int id)
+        [AllowAnonymous()]
+        [HttpGet("getFlightByID/{id}")]
+        public async Task<ActionResult<Flight>> FindFlight(int id)
         {
             var flight = await _repo.GetFlightById(id);
             if (flight == null)
@@ -41,9 +44,22 @@ namespace FlamingoAirwaysAPI.Controllers
             return Ok(flight);
         }
 
+
+        [AllowAnonymous()]
+        [HttpGet("getFlight")]
+        public async Task<ActionResult<IEnumerable<Flight>>> GetFlights([FromQuery] string origin, [FromQuery] string destination, [FromQuery] DateTime departureDate)
+        {
+            var flights = await _repo.SearchFlightsAsync(origin, destination, departureDate);
+            return Ok(flights);
+        }
+
+
+
+
+
         // POST api/<FlamingoAirwaysController>
         [Authorize(Roles="Admin",AuthenticationSchemes=JwtBearerDefaults.AuthenticationScheme)]
-        [HttpPost]
+        [HttpPost("postFlight")]
         public async Task<IActionResult> Post([FromBody] Flight value)
         {
             if (value == null)
@@ -52,11 +68,13 @@ namespace FlamingoAirwaysAPI.Controllers
             }
 
             await _repo.AddFlight(value);
-            return Ok();
+            return Ok($"Flight {value.FlightId} added");
         }
 
+
+
         // PUT api/<FlamingoAirwaysController>/5
-        [HttpPut("{id}")]
+        [HttpPut("putFlight/{id}")]
         [Authorize(Roles = "User", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)] 
         public async Task<IActionResult> Put(int id, [FromBody] Flight value)
         {
@@ -68,23 +86,18 @@ namespace FlamingoAirwaysAPI.Controllers
             }
 
             await _repo.UpdateFlight(id, value);
-            return NoContent();
+            return Ok("Flight Updation Successful!!");
         }
 
         // DELETE api/<FlamingoAirwaysController>/5
-        [HttpDelete("{id}")]
+        [HttpDelete("deleteFlight/{id}")]
         [Authorize(Roles = "Admin", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> Delete(int id)
         {
            await _repo.RemoveFlight(id);
-            return NoContent();
+            return Ok($"Flight {id} deleted");
         }
 
-        [HttpGet("origin")]
-        public async Task<ActionResult<IEnumerable<Flight>>> GetFlights([FromQuery] string origin, [FromQuery] string destination, [FromQuery] DateTime departureDate)
-        {
-            var flights = await _repo.SearchFlightsAsync(origin, destination, departureDate);
-            return Ok(flights);
-        }
+        
     }
 }
